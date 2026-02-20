@@ -36,7 +36,7 @@ This keeps the data node lean, low-power, and cheap — purpose-built for sensin
 ### Main Node — Arduino Mega
 The main node is the intelligence layer. It:
 - Receives structured packets from one or more Data Nodes
-- Runs local ML directly on-device (no cloud required)
+- Runs pre-trained model inference on-device — model trained offline on logged data, coefficients flashed onto hardware
 - Performs anomaly detection
 - Logs data to CSV on SD card
 - Is ready to forward data upstream to an edge processor or cloud
