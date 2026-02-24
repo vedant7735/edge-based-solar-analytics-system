@@ -1,190 +1,128 @@
 # ⚡ Edge-Based Solar Analytics System
 
-![Status](https://img.shields.io/badge/status-active%20development-blue)
-![Platform](https://img.shields.io/badge/platform-embedded%20%7C%20edge-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
-
-> A distributed edge intelligence system for solar panel monitoring — built to scale from a single smart node to a full solar park analytics network.
+> A scalable distributed solar monitoring and analytics platform combining edge sensing, cloud ML, and zone-level anomaly detection.
 
 ---
 
-## What is this?
+## 🚀 Overview
 
-Most solar monitoring systems are passive loggers. This system is different — each data node is a self-contained unit that acquires sensor data, structures it into a clean packet, and transmits it to a main node for local ML, anomaly detection, and analytics. The architecture is designed from the ground up to scale into a distributed network without any redesign.
+Most solar monitoring systems act as passive data loggers. This project introduces a **distributed edge intelligence architecture** where each node actively structures sensor data and contributes to a scalable analytics network.
 
-The architecture follows a single principle: **build one node right, and the park scales itself.**
+The system is designed to scale seamlessly:
+> **Build one node correctly — scale to an entire solar park without redesign.**
 
 ---
 
-## Node Architecture
+## 🧱 System Architecture
 
-The system splits responsibilities across two tiers of hardware:
+The platform is composed of three intelligence layers:
 
-### Data Node — ATtiny85
-The data node is intentionally minimal. Its only job is to:
-- Read sensors (power, temperature, humidity, light)
-- Structure the readings into a clean, labeled packet
-- Stamp it with a unique `NodeID`
-- Transmit it to the Main Node
+### 1️⃣ Data Nodes — Sensing Layer
 
+Each Data Node is responsible for reading electrical and environmental sensors, structuring data into fixed packets, tagging data with a unique `NodeID`, and transmitting to the controller.
+
+**Packet Format:**
 ```
-NodeID | Power | Temperature | Humidity | Light | Timestamp
+NodeID | Voltage | Current | Power | Temperature | Humidity | Light | Timestamp
 ```
 
-This keeps the data node lean, low-power, and cheap — purpose-built for sensing and packet scheduling, nothing more.
-
-### Main Node — Arduino Mega
-The main node is the intelligence layer. It:
-- Receives structured packets from one or more Data Nodes
-- Runs pre-trained model inference on-device — model trained offline on logged data, coefficients flashed onto hardware
-- Performs anomaly detection
-- Logs data to CSV on SD card
-- Is ready to forward data upstream to an edge processor or cloud
-
-**Local ML capabilities:**
-- Next output estimate (time-series prediction)
-- Trend tracking and expected vs. actual comparison
-- Sudden output dip detection
-- Overheating relative to output
-- Weather-independent failure signatures
-- Degradation detection over time
+> Initial prototyping uses **Arduino Mega** (for easier debugging). Final scalable nodes migrate to **ATtiny85**.
 
 ---
 
-## Sensor Stack (per Data Node)
+### 2️⃣ Main Node — Controller Layer
 
-| Sensor | Captures |
-|--------|----------|
-| INA219 | Voltage, current, and power (computed internally via I2C) |
-| LDR | Light / irradiance conditions |
-| DHT11 | Temperature + humidity |
-
-**Communication:** NRF24L01+ (lab) / LoRa (field deployment)
+The Main Node receives packets from multiple Data Nodes, logs structured data locally (CSV / SD card), forwards data to the cloud API, and maintains multi-node synchronization.
 
 ---
 
-## What a Single Node Pair Demonstrates
+### 3️⃣ Cloud Analytics Layer
 
-Even with one Data Node + one Main Node, the system proves:
-
-- Embedded systems design across two hardware tiers
-- Sensor fusion (electrical + environmental)
-- Structured packet protocol with NodeID field
-- Time-series ML on edge hardware
-- Anomaly detection without cloud dependency
-- Scalable architecture ready for multi-node expansion
-
-This is a complete intelligent system — not a partial demo.
+- Stores incoming sensor streams
+- Trains ML models on historical data
+- Detects output anomalies, temperature-performance mismatches, zone underperformance, and long-term degradation
+- Serves results to dashboard / API
 
 ---
 
-## Scaling to a Distributed Solar Park
+## 📡 Sensor Stack
 
-This is where the `NodeID` field becomes load-bearing.
+| Sensor | Measurement |
+|--------|-------------|
+| INA219 | Voltage, Current, Power |
+| DHT11 | Temperature, Humidity |
+| LDR | Light / Irradiance |
 
-### Step 1 — Add Identical Data Nodes
+**Communication:** NRF24L01+ (lab testing) → LoRa (field scale)
+
+---
+
+## 🌐 Multi-Node Scaling Logic
+
+Adding nodes requires no redesign:
 
 ```
-Data Node 1 (NodeID: 01) → Zone A
-Data Node 2 (NodeID: 02) → Zone B
-Data Node 3 (NodeID: 03) → Zone C
+Node 01 → Zone A
+Node 02 → Zone B
+Node 03 → Zone C
 ```
 
-Same hardware. Same firmware. Different NodeID. No redesign required.
-
-### Step 2 — Packets Flow to Main Node
-
-```
-NodeID | Power | Temp | Humidity | Light | Timestamp
-```
-
-The Main Node receives tagged packets from all zones, enabling cross-zone comparison and park-level baselines.
-
-### Step 3 — Distributed Intelligence Layer
-
-With multiple Data Nodes feeding one Main Node:
-- **Distributed averaging** — park-level baseline generation
-- **Relative anomaly detection** — one zone underperforming vs. others
-- **Degradation tracking** — long-term cluster health monitoring
+All analytics leverage `NodeID` for zone-level baselines, relative anomaly detection, and park-wide performance metrics.
 
 ---
 
-## Full Architecture
+## 📈 Key Capabilities
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Data Node A │     │  Data Node B │     │  Data Node C │
-│  ATtiny85    │     │  ATtiny85    │     │  ATtiny85    │
-│              │     │              │     │              │
-│  sense →     │     │  sense →     │     │  sense →     │
-│  structure → │     │  structure → │     │  structure → │
-│  transmit    │     │  transmit    │     │  transmit    │
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │                    │                    │
-       └────────────────────┼────────────────────┘
-                            │  NRF24L01+ / LoRa
-                   ┌────────▼────────┐
-                   │   Main Node     │
-                   │  Arduino Mega   │
-                   │                 │
-                   │  receive +      │
-                   │  predict +      │
-                   │  detect +       │
-                   │  log            │
-                   └────────┬────────┘
-                            │
-                   ┌────────▼────────┐
-                   │  Edge Processor │
-                   │  park baseline  │
-                   │  zone compare   │
-                   │  anomaly fusion │
-                   └────────┬────────┘
-                            │
-                   ┌────────▼────────┐
-                   │  (Optional)     │
-                   │  Cloud / Viz    │
-                   └─────────────────┘
-```
-
-| Layer | Hardware | Role |
-|-------|----------|------|
-| Data Nodes | ATtiny85 | Sensing, packet structuring, transmission |
-| Main Node | Arduino Mega | Packet ingestion, local ML, anomaly detection, logging |
-| Edge Processor | TBD | Park baseline, zone comparison, anomaly fusion |
-| Cloud (optional) | — | Analytics, visualization, long-term storage |
+- ✅ Distributed node architecture
+- ✅ Structured packet protocol
+- ✅ Multi-zone performance comparison
+- ✅ Cloud-based ML training & inference
+- ✅ Anomaly detection
+- ✅ Degradation tracking
+- ✅ Scalable from single panel to solar park
 
 ---
 
-## Tech Stack
+## 🔧 Tech Stack
 
-- Embedded C / Arduino (node firmware)
-- Sensors: INA219, LDR, DHT11
-- Communication: NRF24L01+ (lab) / LoRa (field)
-- ML: lightweight time-series models (on-device, Main Node)
-- Storage: CSV on SD card
-- Visualization: Python + Matplotlib / dashboard (planned)
+**Embedded**
+- Arduino / Embedded C
+- NRF24L01+ / LoRa
 
----
+**Cloud & ML**
+- Python
+- Pandas, Scikit-learn
+- REST API
+- Time-series analytics
 
-## Roadmap
-
-- [x] Single node design — sensing + packet structure
-- [x] Local time-series prediction
-- [x] Anomaly detection (dips, overheating, weather-independent)
-- [ ] ATtiny85 → Mega wireless packet pipeline
-- [ ] Multi-node wireless transmission
-- [ ] Park-level baseline and zone comparison
-- [ ] Degradation tracking over time
-- [ ] Dashboard visualization
+**Storage & Visualization**
+- CSV / Database
+- Dashboard *(planned)*
 
 ---
 
-## Status
+## 🛣 Development Roadmap
 
-**Active development.** Single node architecture complete and functional. Multi-node distributed layer in progress.
+- [x] Sensor data acquisition
+- [x] Packet protocol design
+- [x] Single-node logging
+- [x] Wireless multi-node pipeline
+- [ ] Cloud ingestion API
+- [ ] ML anomaly engine
+- [ ] Zone comparison analytics
+- [ ] Real-time dashboard
+- [ ] Long-term degradation models
 
 ---
 
-## License
+## 📌 Why This Project Matters
 
-MIT
+This system demonstrates real distributed embedded design, edge-to-cloud ML pipelines, scalable IoT architecture, and intelligent solar analytics.
+
+**It is not a sensor demo — it is a full monitoring platform.**
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).
