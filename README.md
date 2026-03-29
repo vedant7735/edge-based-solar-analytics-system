@@ -1,128 +1,203 @@
-# ⚡ Edge-Based Solar Analytics System
+# Edge-Based Solar Intelligence System
 
-> A scalable distributed solar monitoring and analytics platform combining edge sensing, cloud ML, and zone-level anomaly detection.
-
----
-
-## 🚀 Overview
-
-Most solar monitoring systems act as passive data loggers. This project introduces a **distributed edge intelligence architecture** where each node actively structures sensor data and contributes to a scalable analytics network.
-
-The system is designed to scale seamlessly:
-> **Build one node correctly — scale to an entire solar park without redesign.**
+> A distributed solar monitoring system with edge-deployed analytics, contextual fault detection, and multi-node intelligence.
 
 ---
 
-## 🧱 System Architecture
+## Overview
 
-The platform is composed of three intelligence layers:
+Most solar monitoring systems act as passive data loggers or rely heavily on cloud-based analytics. This project implements a **fully edge-based intelligence system** where data is processed, interpreted, and classified directly on the controller.
 
-### 1️⃣ Data Nodes — Sensing Layer
+The system focuses on **context-aware decision making**, not just raw anomaly detection.
 
-Each Data Node is responsible for reading electrical and environmental sensors, structuring data into fixed packets, tagging data with a unique `NodeID`, and transmitting to the controller.
+> **Train once, deploy as lightweight logic — no cloud dependency required.**
+
+---
+
+## System Architecture
+
+The platform consists of two main layers:
+
+### 1️. Data Nodes — Sensing Layer
+
+Each Data Node collects electrical and environmental parameters, structures them into fixed packets, and transmits them to the controller.
 
 **Packet Format:**
 ```
 NodeID | Voltage | Current | Power | Temperature | Humidity | Light | Timestamp
 ```
 
-> Initial prototyping uses **Arduino Mega** (for easier debugging). Final scalable nodes migrate to **ATtiny85**.
+> Prototype uses **Arduino Mega**. Scalable nodes can be implemented on **ATtiny85**.
 
 ---
 
-### 2️⃣ Main Node — Controller Layer
+### 2️. Main Node — Edge Intelligence Layer
 
-The Main Node receives packets from multiple Data Nodes, logs structured data locally (CSV / SD card), forwards data to the cloud API, and maintains multi-node synchronization.
+The Main Node performs all computation and decision-making locally using RTOS-based task scheduling:
+- Uses RTOS tasks for periodic, non-blocking sensor data acquisition
+
+- Receives and parses multi-node data
+- Computes derived features (efficiency, residuals, trends)
+- Applies regression-based expected output estimation
+- Runs classification logic (converted from trained models)
+- Tracks time-based deviations
+- Performs multi-node comparison
+
+No cloud dependency — all intelligence runs on-device.
+
+### RTOS-Based Scheduling
+
+The system uses RTOS to schedule periodic tasks for sensor acquisition and processing.
+
+- Each sensor is handled by an independent task
+- Tasks run at fixed intervals (e.g., every 30 seconds)
+- Non-blocking execution ensures continuous system responsiveness
+
+This allows the system to scale across multiple sensors without sequential delays.
 
 ---
 
-### 3️⃣ Cloud Analytics Layer
+## ML & Decision Logic
 
-- Stores incoming sensor streams
-- Trains ML models on historical data
-- Detects output anomalies, temperature-performance mismatches, zone underperformance, and long-term degradation
-- Serves results to dashboard / API
+### Model Strategy
+
+Instead of deploying heavy models, the system uses:
+
+- **Regression model**  
+  Estimates expected power: 
+  ```
+  Power = f(Light, Temperature, Humidity)
+  ```
+
+- **Decision tree logic (converted to if–else rules)**  
+Used for classification of system states
+
+> Models are trained offline and deployed as lightweight logic on the edge device.
 
 ---
 
-## 📡 Sensor Stack
+### Feature Engineering
+
+**Raw Inputs:**
+- Power
+- Light (irradiance proxy)
+- Temperature
+- Humidity
+
+**Derived Features:**
+- Efficiency = Power / Light
+- Residual = Actual − Expected Power
+- Rate of change (Light, Power)
+- Duration of deviation
+
+---
+
+### Context-Aware Classification
+
+The system classifies conditions instead of flagging binary anomalies:
+
+| Condition     | Meaning                              |
+|--------------|--------------------------------------|
+| NORMAL       | Expected performance                 |
+| CLOUD        | Temporary drop due to low irradiance |
+| DIRTY PANEL  | Long-term efficiency loss            |
+| FAULT        | Unexpected mismatch                  |
+| LOW LIGHT    | Night / very low irradiance          |
+
+---
+
+### Time-Based Intelligence
+
+- Short deviations → ignored (e.g., passing clouds)
+- Persistent deviations → flagged (e.g., dirt, faults)
+
+Implements:
+- Deviation counters
+- Duration thresholds
+
+---
+
+### Multi-Node Comparison
+
+Using `NodeID`, the system compares nodes under similar conditions:
+
+- Detects underperforming panels
+- Identifies zone-level issues
+- Improves classification reliability
+
+Example: 
+```
+Relative Score = Node Power / Average Power (all nodes)
+```
+
+---
+
+## Sensor Stack
 
 | Sensor | Measurement |
 |--------|-------------|
 | INA219 | Voltage, Current, Power |
-| DHT11 | Temperature, Humidity |
-| LDR | Light / Irradiance |
+| DHT11  | Temperature, Humidity |
+| LDR    | Light / Irradiance |
 
 **Communication:** NRF24L01+ (lab testing) → LoRa (field scale)
 
 ---
 
-## 🌐 Multi-Node Scaling Logic
+## Key Capabilities
 
-Adding nodes requires no redesign:
-
-```
-Node 01 → Zone A
-Node 02 → Zone B
-Node 03 → Zone C
-```
-
-All analytics leverage `NodeID` for zone-level baselines, relative anomaly detection, and park-wide performance metrics.
+- Fully edge-based intelligence (no cloud required)
+- Context-aware multi-class classification
+- Lightweight ML deployment (model → logic conversion)
+- Multi-node comparison for improved accuracy
+- Time-based anomaly filtering
+- Scalable from single panel to solar park
+- RTOS-based periodic task scheduling for non-blocking data acquisition
 
 ---
 
-## 📈 Key Capabilities
-
-- ✅ Distributed node architecture
-- ✅ Structured packet protocol
-- ✅ Multi-zone performance comparison
-- ✅ Cloud-based ML training & inference
-- ✅ Anomaly detection
-- ✅ Degradation tracking
-- ✅ Scalable from single panel to solar park
-
----
-
-## 🔧 Tech Stack
+## Tech Stack
 
 **Embedded**
 - Arduino / Embedded C
-- NRF24L01+ / LoRa
+- NRF24L01+
 
-**Cloud & ML**
-- Python
-- Pandas, Scikit-learn
-- REST API
-- Time-series analytics
+**Edge Analytics**
+- Python (offline training)
+- Scikit-learn (model development)
+- Rule-based inference (on-device)
 
-**Storage & Visualization**
-- CSV / Database
-- Dashboard *(planned)*
+**Storage**
+- CSV / SD card logging
 
 ---
 
-## 🛣 Development Roadmap
+## Development Roadmap
 
 - [x] Sensor data acquisition
 - [x] Packet protocol design
-- [x] Single-node logging
-- [x] Wireless multi-node pipeline
-- [ ] Cloud ingestion API
-- [ ] ML anomaly engine
-- [ ] Zone comparison analytics
-- [ ] Real-time dashboard
-- [ ] Long-term degradation models
+- [x] Multi-node wireless pipeline
+- [x] Edge-based feature engineering
+- [x] Regression + classification logic deployment
+- [ ] Confidence scoring system
+- [ ] Drift / degradation detection
+- [ ] Visualization dashboard
 
 ---
 
-## 📌 Why This Project Matters
+## Why This Project Matters
 
-This system demonstrates real distributed embedded design, edge-to-cloud ML pipelines, scalable IoT architecture, and intelligent solar analytics.
+This system demonstrates:
 
-**It is not a sensor demo — it is a full monitoring platform.**
+- Edge-deployed ML systems
+- Interpretable decision logic
+- Distributed IoT architecture
+- Practical anomaly classification under real-world conditions
+
+**It moves beyond data logging into actionable, on-device intelligence.**
 
 ---
 
-## 📜 License
+## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License.
